@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Function Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 10px;
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 4px;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Text or Image</h1>
+        <div class="form-group">
+            <label for="partitionKey">Partition Key</label>
+            <input type="text" id="partitionKey" placeholder="Enter partition key" required>
+        </div>
+        <div class="form-group">
+            <label for="textInput">Text Input</label>
+            <textarea id="textInput" rows="4" placeholder="Enter text here"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="fileInput">Image Input</label>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <button id="submitButton">Submit</button>
+        <div id="response" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        const functionUrl = "https://linkup-function-app.azurewebsites.net/api/CreatePost"; // Replace with your Function's URL
+
+document.getElementById("submitButton").addEventListener("click", async () => {
+    const partitionKey = document.getElementById("partitionKey").value;
+    const textInput = document.getElementById("textInput").value;
+    const fileInput = document.getElementById("fileInput").files[0];
+
+    if (!partitionKey) {
+        alert("Partition Key is required.");
+        return;
+    }
+
+    if (textInput && fileInput) {
+        alert("Please provide either text or an image, not both.");
+        return;
+    }
+
+    if (textInput) {
+        // Submit text
+        const payload = {
+            id: Math.random().toString(36).substr(2, 9),
+            partitionKey: partitionKey,
+            text: textInput
+        };
+        const response = await fetch(functionUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        showResponse(result);
+    } else if (fileInput) {
+        // Submit image
+        const formData = new FormData();
+        formData.append("file", fileInput);
+
+        const response = await fetch(`${functionUrl}?partitionKey=${partitionKey}`, {
+            method: "POST",
+            body: fileInput,
+        });
+        const result = await response.json();
+        showResponse(result);
+    } else {
+        alert("Please provide text or an image.");
+    }
+});
+
+document.getElementById("fetchButton").addEventListener("click", async () => {
+    const partitionKey = document.getElementById("partitionKey").value;
+
+    let url = `${functionUrl}/GetDataFunction`;
+    if (partitionKey) {
+        url += `?partitionKey=${partitionKey}`;
+    }
+
+    const response = await fetch(url, { method: "GET" });
+    const data = await response.json();
+    displayOutput(data);
+});
+
+        function showResponse(response) {
+            const responseElement = document.getElementById("response");
+            responseElement.style.display = "block";
+            responseElement.innerText = JSON.stringify(response, null, 2);
+        }
+
+        function displayOutput(data) {
+            const outputElement = document.getElementById("output");
+            outputElement.innerHTML = ""; // Clear previous output
+            if (Array.isArray(data)) {
+                data.forEach(item => {
+                    const div = document.createElement("div");
+                    div.style.marginBottom = "10px";
+                    div.style.padding = "10px";
+                    div.style.border = "1px solid #ccc";
+                    div.style.borderRadius = "4px";
+                    div.style.background = "#fff";
+                    div.innerText = JSON.stringify(item, null, 2);
+                    outputElement.appendChild(div);
+                });
+            } else {
+                outputElement.innerText = "No data found.";
+            }
+        }
+    </script>
+</body>
+</html>
